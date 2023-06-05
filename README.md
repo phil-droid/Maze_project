@@ -4,7 +4,8 @@ Introduction:
 The goal of this project is to create a game in 3D using raycasting. The game will have basic features such as walls, sky, ground, weapons and players.
 
 Team members:
-PHIL COLLINS:The whole project would be carried out by myself.
+PHIL COLLINS:I would be in charge of project design and development and testing.
+DANIEL:Daniel would assist in project development and debugging.
 
 Project Timeline:
 Phase1:Project planning and  design:
