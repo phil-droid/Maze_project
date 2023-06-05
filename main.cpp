@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <curl/curl.h>
+#include <SDL2/SDL_net.h>
 
 // Define constants
 
@@ -192,6 +194,63 @@ void castRays(SDL_Renderer* renderer, SDL_Texture* wallTexture, SDL_Texture* rai
     }
 }
 
+//Function to download the image from the URL and save it locally
+bool downloadImage(const std::string& url, const std::string& filename)
+{
+    CURL* curl = curl_easy_init();
+    if (!curl)
+    {
+        std::cerr << "Failed to initialize libcurl" << std::endl;
+        return false;
+    }
+
+    FILE* file = fopen(filename.c_str(), "wb");
+    if (!file)
+    {
+        std::cerr << "Failed to create file: " << filename << std::endl;
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+    CURLcode res = curl_easy_perform(curl);
+
+    fclose(file);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK)
+    {
+        std::cerr << "Failed to download image: " << curl_easy_strerror(res) << std::endl;
+        std::remove(filename.c_str());
+        return false;
+    }
+
+    return true;
+}
+
+// Function to load the image as an SDL_Texture
+SDL_Texture* loadTextureFromImage(SDL_Renderer* renderer, const std::string& imagePath)
+{
+    SDL_Surface* surface = IMG_Load(imagePath.c_str());
+    if (!surface)
+    {
+        std::cerr << "Failed to load image: " << imagePath << std::endl;
+        return nullptr;
+    }
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+
+    if (!texture)
+    {
+        std::cerr << "Failed to create texture from image: " << imagePath << std::endl;
+        return nullptr;
+    }
+
+    return texture;
+}
+
 int main()
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -218,25 +277,36 @@ int main()
         return 1;
     }
 
-    SDL_Texture* wallTexture = IMG_LoadTexture(renderer, "wall_texture.png");
-    if (!wallTexture)
+    std::string wallTextureURL = "https://raw.githubusercontent.com/phil-droid/Maze_project/main/wall_texture.png";
+    std::string wallTextureFile = "wall_texture.png";
+
+    std::string rainTextureURL = "https://raw.githubusercontent.com/phil-droid/Maze_project/main/rain_texture.png";
+    std::string rainTextureFile = "rain_texture.png";
+
+    if (!downloadImage(wallTextureURL, wallTextureFile))
     {
-        std::cerr << "Failed to load wall texture: " << IMG_GetError() << std::endl;
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
+        std::cerr << "Failed to download wall texture" << std::endl;
+        // Cleanup and exit
     }
 
-    SDL_Texture* rainTexture = IMG_LoadTexture(renderer, "rain_texture.png");
+    if (!downloadImage(rainTextureURL, rainTextureFile))
+    {
+        std::cerr << "Failed to download rain texture" << std::endl;
+        // Cleanup and exit
+    }
+
+    SDL_Texture* wallTexture = loadTextureFromImage(renderer, wallTextureFile);
+    if (!wallTexture)
+    {
+        std::cerr << "Failed to load wall texture" << std::endl;
+        // Cleanup and exit
+    }
+
+    SDL_Texture* rainTexture = loadTextureFromImage(renderer, rainTextureFile);
     if (!rainTexture)
     {
-        std::cerr << "Failed to load rain texture: " << IMG_GetError() << std::endl;
-        SDL_DestroyTexture(wallTexture);
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
+        std::cerr << "Failed to load rain texture" << std::endl;
+        // Cleanup and exit
     }
 
     if (!parseMap("map.txt"))
